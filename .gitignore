@@ -1,0 +1,20 @@
+# Vivado / Xilinx Junk
+*.jou
+*.log
+*.pb
+*.wdb
+*.str
+.Xil/
+.cache/
+.hw/
+.sim/
+.runs/
+*.xpr
+
+# UVM / Simulation Binaries
+sim/
+*.vcd
+*.fsdb
+csrc/
+simv*
+*.daidir/
