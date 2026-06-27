@@ -10,7 +10,6 @@
 *.sim/
 *.ip_user_files/
 .runs/
-*.xpr
 
 # UVM / Simulation Binaries
 sim/
