@@ -5,9 +5,10 @@
 *.wdb
 *.str
 .Xil/
-.cache/
-.hw/
-.sim/
+*.cache/
+*.hw/
+*.sim/
+*.ip_user_files/
 .runs/
 *.xpr
 
