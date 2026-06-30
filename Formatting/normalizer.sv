@@ -4,7 +4,8 @@ module normalizer(
     input logic[8:0] exp_in,
     output logic[7:0] mantissa_out,
     output logic[8:0] exp_out,
-    output logic G, R, S
+    output logic G, R, S,
+    output logic flag_underflow
     );
 
     logic[3:0] shift_amt;

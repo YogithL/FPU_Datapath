@@ -4,13 +4,14 @@ module rounder(
     input logic[8:0] exp_in,
     input logic G, R, S,
     output logic[7:0] mantissa_out,
-    output logic[8:0] exp_out
+    output logic[8:0] exp_out,
+    output logic flag_overflow
     );
 
     logic round_up;
     logic[8:0] rounded_mantissa;
     logic flag_overflow;
-        assign flag_overflow = exp_out[8];
+        assign flag_overflow = exp_out[8] | (&exp_out[7:0]);
 
     always_comb begin
         round_up = G & (R | S | mantissa_in[0]);

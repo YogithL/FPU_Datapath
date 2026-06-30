@@ -4,9 +4,9 @@ def daddaTree():
     daddaNumbers = [6, 4, 3, 2]
 
     rtl.append("module daddaMultiplier(")
-    rtl.append("    input [7:0] a, b,")
-    rtl.append("    output [15:0] factor1, factor2")
-    rtl.append("    );\n")
+    rtl.append("\tinput [7:0] a, b,")
+    rtl.append("\toutput [15:0] factor1, factor2")
+    rtl.append("\t);\n")
 
     for i in range(8):
         for j in range(8):
