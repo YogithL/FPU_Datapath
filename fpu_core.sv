@@ -2,8 +2,8 @@
 module fpu_core import fpu_pkg::*;(
     input logic[15:0] A, B,
     input opcode_t op,
-    input logic acc,
     output logic[15:0] result,
+    output logic accumulate_enable
     );
 
     //UNPACKING
@@ -24,9 +24,14 @@ module fpu_core import fpu_pkg::*;(
 
     //ERROR FLAGS
     logic flag_A_NAN;
-        assign flag_A_NAN = (A[14:6] == 9'h1FF); //(A_exp == 8'b255) && (A_mant[6] == 1'b1)
+        assign flag_A_NAN = (A[14:6] == 9'h1FF);
     logic flag_B_NAN;
-        assign flag_B_NAN = (B[14:6] == 9'h1FF); //(B_exp == 8'b255) && (B_mant[6] == 1'b1)
+        assign flag_B_NAN = (B[14:6] == 9'h1FF);
+
+    logic A_is_inf;
+        assign A_is_inf = (A[14:0] == 15'h7F80);
+    logic B_is_inf;
+        assign B_is_inf = (B[14:0] == 15'h7F80);
 
     logic flag_overflow;
     logic flag_underflow;
@@ -73,6 +78,7 @@ module fpu_core import fpu_pkg::*;(
     //ALIGNMENT FOR ADD/SUB
     logic[7:0] mantissa_to_align;
     logic[3:0] shift_amt;
+    logic[7:0] exp_diff;
 
     logic[7:0] EXP_ADD_SUB_RAW;
     logic[7:0] aligned_mant;
@@ -80,16 +86,18 @@ module fpu_core import fpu_pkg::*;(
 
     always_comb begin
         if(a_greater) begin
-            shift_amt = A - B;
-            mantissa_to_align = {1'b1, B_mant};   
-            EXP_ADD_SUB_RAW = A_exp; 
-        end
-
+            exp_diff = A_exp - B_exp;
+            mantissa_to_align = {1'b1, B_mant};
+            EXP_ADD_SUB_RAW = A_exp;
+        end 
+        
         else begin
-            shift_amt = B - A;
+            exp_diff = B_exp - A_exp;
             mantissa_to_align = {1'b1, A_mant};
             EXP_ADD_SUB_RAW = B_exp;
         end
+        
+        shift_amt = (exp_diff >= 8'd11) ? 4'd11 : exp_diff[3:0];
     end
 
     alignmentShifter alignmentShifter(
@@ -104,8 +112,9 @@ module fpu_core import fpu_pkg::*;(
     //ADD/SUB MANTISSA CALC
     logic[11:0] MANT_ADD_SUB_RAW;
 
-    logic[7:0] larger_mantissa = a_greater ? ({1'b1, A_mant}) : ({1'b1, B_mant});
-    
+    logic[7:0] larger_mantissa;
+        assign larger_mantissa = a_greater ? {1'b1, A_mant} : {1'b1, B_mant};
+
     eff_add_sub eff_op;
 
     always_comb begin
@@ -135,13 +144,13 @@ module fpu_core import fpu_pkg::*;(
             .index(B_mant), .reciprocal(recip_B)
         );
 
-    logic dadda_wire;
-        assign dadda_wire = (op == MUL) ? B_mant : recip_B;
+    logic[7:0] dadda_wire;
+        assign dadda_wire = (op == MUL) ? {1'b1, B_mant} : recip_B;
     
     logic[15:0] row1, row2;
     
     dadda_multiplier daddaMultiplier(
-            .a(A_mant),
+            .a({1'b1, A_mant}),
             .b(dadda_wire),
             .factor1(row1),
             .factor2(row2)
@@ -150,8 +159,14 @@ module fpu_core import fpu_pkg::*;(
     logic[15:0] sum;
         assign sum = row1 + row2;
     
-    logic[11:0] MANT_MUL_DIV_RAW; //formatted version to put inside normalizer
-        assign MANT_MUL_DIV_RAW = {1'b0, sum[15], sum[14:8], sum[7], sum[6], | sum[5:0]}; //{0, imp1, Mantissa, G, R, S}
+    logic[11:0] MANT_DIV_RAW; 
+        assign MANT_DIV_RAW = {1'b0, sum[15], sum[14:8], sum[7], sum[6], |sum[5:0]};
+
+    logic[11:0] MANT_MUL_RAW;
+        assign MANT_MUL_RAW = {sum[15], sum[14], sum[13:7], sum[6], sum[5], |sum[4:0]};
+
+    logic[11:0] MANT_MUL_DIV_RAW;
+        assign MANT_MUL_DIV_RAW = (op == MUL) ? MANT_MUL_RAW : MANT_DIV_RAW;
 
     //MULTIPLY/DIVIDE EXPONENT CALC
     logic[8:0] EXP_MUL_DIV_RAW;
@@ -207,7 +222,8 @@ module fpu_core import fpu_pkg::*;(
             .flag_overflow(flag_overflow)
         );
     
-    logic[15:0] arithmetic_result = {result_sign_wire, result_exp_wire, result_mant_wire};
+    logic[15:0] arithmetic_result;
+        assign arithmetic_result = {result_sign_wire, result_exp_wire, result_mant_wire};
 
     //SLT
     logic[15:0] SLT;
@@ -230,13 +246,45 @@ module fpu_core import fpu_pkg::*;(
     end
 
     //FINAL RESULT MUXING
-    logic[15:0] final_result;
+    logic is_arith;
+    assign is_arith = (op==ADD)||(op==SUB)||(op==MUL)||(op==DIV);
+
+    //Catches cases where exponent isn't changed but result is known to be 0. 
+    //Added for subtraction between like 3.0 - 3.0
+    logic result_is_zero;
+        assign result_is_zero = is_arith && (round_mant_wire == 8'b0);
 
     always_comb begin
+        accumulate_enable = 1'b1;
+        result = 16'b0;
 
+        case(op)
+            ADD, DIV, MUL, SUB: result = arithmetic_result;
+            NEG: result = {~A_sign, A_exp, A_mant};
+            ABS: result = {1'b0, A_exp, A_mant};
+            SLT: result = SLT;
+            NOP: accumulate_enable = 1'b0;
+
+            default: accumulate_enable = 1'b0;
+        endcase
+
+        if(is_arith && (flag_overflow || flag_div_by_zero))
+            result = {result_sign_wire, 8'hFF, 7'h00};
+        if(is_arith && flag_underflow)
+            result = 16'b0;
+        
+        if(result_is_zero)
+            result = 16'h0000;
+
+        if(op == DIV && A_is_inf && !B_is_inf)
+            result = {result_sign_wire, 8'hFF, 7'h00};
+        if(op == DIV && B_is_inf && !A_is_inf)
+            result = {result_sign_wire, 8'h00, 7'h00};
+        if(op == MUL && (A_is_inf || B_is_inf))
+            result = {result_sign_wire, 8'hFF, 7'h00};
+
+        if(flag_NAN)
+            result = 16'h7FC0;
     end
-
-
-
 
 endmodule
