@@ -10,7 +10,7 @@ module rounder(
 
     logic round_up;
     logic[8:0] rounded_mantissa;
-    assign flag_overflow = exp_out[8] | (&exp_out[7:0]);
+    assign flag_overflow = exp_out[8] | (&exp_out[7:0]); //Overflow or 255
 
     always_comb begin
         round_up = G & (R | S | mantissa_in[0]);

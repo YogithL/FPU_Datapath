@@ -3,7 +3,7 @@ def daddaTree():
     rtl = []
     daddaNumbers = [6, 4, 3, 2]
 
-    rtl.append("module daddaMultiplier(")
+    rtl.append("module dadda_multiplier(")
     rtl.append("\tinput [7:0] a, b,")
     rtl.append("\toutput [15:0] factor1, factor2")
     rtl.append("\t);\n")

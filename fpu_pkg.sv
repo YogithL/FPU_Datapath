@@ -12,4 +12,10 @@ package fpu_pkg;
         NOP = 3'b111
     } opcode_t;
 
+    typedef enum logic
+    {
+        ADD_EFF = 1'b0,
+        SUB_EFF = 1'b1
+    } eff_add_sub;
+    
 endpackage

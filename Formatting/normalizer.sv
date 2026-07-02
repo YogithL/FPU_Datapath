@@ -1,6 +1,6 @@
 
 module normalizer(
-    input logic[11:0] raw_in,
+    input logic[11:0] mant_in,
     input logic[8:0] exp_in,
     output logic[7:0] mantissa_out,
     output logic[8:0] exp_out,
@@ -10,18 +10,15 @@ module normalizer(
 
     logic[3:0] shift_amt;
     logic[11:0] shifted;
-    logic flag_underflow;
-        assign flag_underflow = shift_amt >= exp_in;
-
+    
     always_comb begin
-        if(raw_in[11]) begin
-            shifted = raw_in >> 1;
-            shifted[0] = raw_in[1] | raw_in[0];
+        if(mant_in[11]) begin
+            shifted = {1'b0, mant_in[11:2], mant_in[1] | mant_in[0]};
             exp_out = exp_in + 9'd1;
         end
         
         else begin
-            casez(raw_in[10:0])
+            casez(mant_in[10:0])
                 11'b1??????????: shift_amt = 4'd0;
                 11'b01?????????: shift_amt = 4'd1;
                 11'b001????????: shift_amt = 4'd2;
@@ -35,8 +32,10 @@ module normalizer(
                 11'b00000000001: shift_amt = 4'd10;
                 default: shift_amt = 4'd0;
             endcase
+            
+            flag_underflow = shift_amt >= exp_in;
 
-            shifted = raw_in << shift_amt;
+            shifted = mant_in << shift_amt;
             exp_out = exp_in - shift_amt;
         end
 
