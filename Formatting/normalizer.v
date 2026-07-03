@@ -1,17 +1,17 @@
 
 module normalizer(
-    input logic[11:0] mant_in,
-    input logic[8:0] exp_in,
-    output logic[7:0] mantissa_out,
-    output logic[8:0] exp_out,
-    output logic G, R, S,
-    output logic flag_underflow
+    input wire[11:0] mant_in,
+    input wire[8:0] exp_in,
+    output reg[7:0] mantissa_out,
+    output reg[8:0] exp_out,
+    output reg G, R, S,
+    output reg flag_underflow
     );
 
-    logic[3:0] shift_amt;
-    logic[11:0] shifted;
+    reg[3:0] shift_amt;
+    reg[11:0] shifted;
     
-    always_comb begin
+    always @(*) begin
         if(mant_in[11]) begin
             shifted = {1'b0, mant_in[11:2], mant_in[1] | mant_in[0]};
             exp_out = exp_in + 9'd1;

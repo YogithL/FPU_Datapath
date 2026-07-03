@@ -1,18 +1,19 @@
+`include "fpu_pkg.v"
 
 module sign_gen(
-    input logic a_greater,
-    input logic a_b_equal,
-    input logic A_sign,
-    input logic B_sign,
-    input opcode_t op,
-    output logic sign
+    input wire a_greater,
+    input wire a_b_equal,
+    input wire A_sign,
+    input wire B_sign,
+    input wire[2:0] op,
+    output reg sign
     );
 
-    always_comb begin
+    always @(*) begin
         case(op)
-            DIV, MUL: sign = A_sign ^ B_sign;
+            `DIV, `MUL: sign = A_sign ^ B_sign;
             
-            ADD: begin
+            `ADD: begin
                 if(A_sign == B_sign)
                     sign = A_sign;
                 else if(a_b_equal)
@@ -21,7 +22,7 @@ module sign_gen(
                     sign = a_greater ? A_sign : B_sign;
             end
             
-            SUB: begin
+            `SUB: begin
                 if(A_sign != B_sign)
                     sign = A_sign;
                 else if(a_b_equal)
@@ -30,10 +31,10 @@ module sign_gen(
                     sign = a_greater ? A_sign : !B_sign;
             end
             
-            NEG: sign = !A_sign;
-            ABS: sign = 1'b0;
-            SLT: sign = 1'b0;
-            NOP: sign = 1'b0;
+            `NEG: sign = !A_sign;
+            `ABS: sign = 1'b0;
+            `SLT: sign = 1'b0;
+            `NOP: sign = 1'b0;
             
             default: sign = 1'b0;
         endcase

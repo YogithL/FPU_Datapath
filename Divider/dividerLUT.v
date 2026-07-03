@@ -1,10 +1,10 @@
 
 module dividerLUT(
-	input logic[6:0] index,
-	output logic[7:0] reciprocal
+	input wire[6:0] index,
+	output reg[7:0] reciprocal
 	);
 
-	always_comb begin
+	always @(*) begin
 		case(index)
 			7'd0: reciprocal = 8'b11111111;
 			7'd1: reciprocal = 8'b11111110;
@@ -134,8 +134,7 @@ module dividerLUT(
 			7'd125: reciprocal = 8'b10000010;
 			7'd126: reciprocal = 8'b10000001;
 			7'd127: reciprocal = 8'b10000001;
+			default: reciprocal = 8'b00000000;
 		endcase
-
 	end
-
 endmodule

@@ -1,18 +1,18 @@
 
 module rounder(
-    input logic[7:0] mantissa_in,
-    input logic[8:0] exp_in,
-    input logic G, R, S,
-    output logic[7:0] mantissa_out,
-    output logic[8:0] exp_out,
-    output logic flag_overflow
+    input wire[7:0] mantissa_in,
+    input wire[8:0] exp_in,
+    input wire G, R, S,
+    output reg[7:0] mantissa_out,
+    output reg[8:0] exp_out,
+    output wire flag_overflow
     );
 
-    logic round_up;
-    logic[8:0] rounded_mantissa;
+    reg round_up;
+    reg[8:0] rounded_mantissa;
     assign flag_overflow = exp_out[8] | (&exp_out[7:0]); //Overflow or 255
 
-    always_comb begin
+    always @(*) begin
         round_up = G & (R | S | mantissa_in[0]);
 
         rounded_mantissa = {1'b0, mantissa_in} + {8'b0, round_up};

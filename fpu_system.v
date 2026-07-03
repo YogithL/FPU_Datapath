@@ -1,21 +1,22 @@
+`include "fpu_pkg.v"
 
 module fpu_system(
     input clk,
     input reset_n,
-    input logic data_ready,
-    input logic[15:0] A, B, //I/O Registers
-    input opcode_t op, //I/O Registers
-    input acc, //I/O Registers
-    output logic[15:0] accumulate_register, //Register in FPU_System 
-    output logic result_ready
+    input data_ready,
+    input wire[15:0] A, B,
+    input wire[2:0] op,
+    input acc,
+    output reg[15:0] accumulate_register,
+    output reg result_ready
     );
 
-    logic[15:0] datapath_result;
-    logic accumulate_register_enable;
-    logic[15:0] input_a;
+    wire[15:0] datapath_result;
+    wire accumulate_register_enable;
+    wire[15:0] input_a;
         assign input_a = acc ? accumulate_register : A;
         
-    always_ff @(posedge clk or negedge reset_n) begin
+    always @(posedge clk or negedge reset_n) begin
         if(!reset_n) begin
             accumulate_register <= 16'b0;
             result_ready <= 1'b0;
@@ -38,6 +39,5 @@ module fpu_system(
         .result(datapath_result),
         .accumulate_enable(accumulate_register_enable)
     );
-
 
 endmodule

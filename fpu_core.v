@@ -1,70 +1,71 @@
+`include "fpu_pkg.v"
 
-module fpu_core import fpu_pkg::*;(
-    input logic[15:0] A, B,
-    input opcode_t op,
-    output logic[15:0] result,
-    output logic accumulate_enable
+module fpu_core(
+    input wire[15:0] A, B,
+    input wire[2:0] op,
+    output reg[15:0] result,
+    output reg accumulate_enable
     );
 
     //UNPACKING
-    logic A_sign;
+    wire A_sign;
         assign A_sign = A[15];
-    logic B_sign;
+    wire B_sign;
         assign B_sign = B[15];
 
-    logic[7:0] A_exp;
+    wire[7:0] A_exp;
         assign A_exp = A[14:7];
-    logic[7:0] B_exp;
+    wire[7:0] B_exp;
         assign B_exp = B[14:7];
 
-    logic[6:0] A_mant;
+    wire[6:0] A_mant;
         assign A_mant = A[6:0];
-    logic[6:0] B_mant;
+    wire[6:0] B_mant;
         assign B_mant = B[6:0];
 
     //ERROR FLAGS
-    logic flag_A_NAN;
+    wire flag_A_NAN;
         assign flag_A_NAN = (A[14:6] == 9'h1FF);
-    logic flag_B_NAN;
+    wire flag_B_NAN;
         assign flag_B_NAN = (B[14:6] == 9'h1FF);
 
-    logic A_is_inf;
+    wire A_is_inf;
         assign A_is_inf = (A[14:0] == 15'h7F80);
-    logic B_is_inf;
+    wire B_is_inf;
         assign B_is_inf = (B[14:0] == 15'h7F80);
 
-    logic flag_overflow;
-    logic flag_underflow;
-    
-    logic flag_div_by_zero;
-        assign flag_div_by_zero = (op == DIV) && (A[14:0] != 0) && (B[14:0] == 0);
-    logic flag_NAN; 
+    reg flag_overflow;
+    reg flag_underflow;
+
+    wire flag_div_by_zero;
+        assign flag_div_by_zero = (op == `DIV) && (A[14:0] != 0) && (B[14:0] == 0);
+
+    wire flag_NAN; 
         assign flag_NAN = (flag_A_NAN || flag_B_NAN) ||
         // Infinity / Infinity
-        ((op == DIV) && (A[14:0] == 15'h7F80) && (B[14:0] == 15'h7F80)) ||
+        ((op == `DIV) && (A[14:0] == 15'h7F80) && (B[14:0] == 15'h7F80)) ||
         
         // 0 / 0
-        ((op == DIV) && (A[14:0] == 15'h0000) && (B[14:0] == 15'h0000)) ||
+        ((op == `DIV) && (A[14:0] == 15'h0000) && (B[14:0] == 15'h0000)) ||
         
         // 0 * Infinity or Infinity * 0
-        ((op == MUL) && (A[14:0] == 15'h0000) && (B[14:0] == 15'h7F80)) ||
-        ((op == MUL) && (A[14:0] == 15'h7F80) && (B[14:0] == 15'h0000)) ||
+        ((op == `MUL) && (A[14:0] == 15'h0000) && (B[14:0] == 15'h7F80)) ||
+        ((op == `MUL) && (A[14:0] == 15'h7F80) && (B[14:0] == 15'h0000)) ||
         
         // +Infinity + -Infinity
-        ((op == ADD) && (A[14:0] == 15'h7F80) && (B[14:0] == 15'h7F80) && (A[15] != B[15])) ||
+        ((op == `ADD) && (A[14:0] == 15'h7F80) && (B[14:0] == 15'h7F80) && (A[15] != B[15])) ||
         
         // Infinity - Infinity
-        ((op == SUB) && (A[14:0] == 15'h7F80) && (B[14:0] == 15'h7F80) && (A[15] == B[15]));                           
-    
+        ((op == `SUB) && (A[14:0] == 15'h7F80) && (B[14:0] == 15'h7F80) && (A[15] == B[15]));                               
 
     //MAGNITUDE COMPARISON
-    logic a_greater;
+    wire a_greater;
         assign a_greater = (A[14:0] > B[14:0]);
-    logic a_b_equal;
+    wire a_b_equal;
         assign a_b_equal = (A[14:0] == B[14:0]);
     
     //SIGN GENERATION
-    logic result_sign_wire;
+    wire result_sign_wire;
 
     sign_gen signGen(
             .a_greater(a_greater),
@@ -76,15 +77,15 @@ module fpu_core import fpu_pkg::*;(
         );
     
     //ALIGNMENT FOR ADD/SUB
-    logic[7:0] mantissa_to_align;
-    logic[3:0] shift_amt;
-    logic[7:0] exp_diff;
+    reg[7:0] exp_diff;
+    reg[7:0] EXP_ADD_SUB_RAW;
+    reg[7:0] mantissa_to_align;
+    wire[2:0] GRS_ADD_SUB_PRE;
+    
+    wire[3:0] shift_amt;
+    wire[7:0] aligned_mant;
 
-    logic[7:0] EXP_ADD_SUB_RAW;
-    logic[7:0] aligned_mant;
-    logic[2:0] GRS_ADD_SUB_PRE;
-
-    always_comb begin
+    always @(*) begin
         if(a_greater) begin
             exp_diff = A_exp - B_exp;
             mantissa_to_align = {1'b1, B_mant};
@@ -110,44 +111,44 @@ module fpu_core import fpu_pkg::*;(
         );
     
     //ADD/SUB MANTISSA CALC
-    logic[11:0] MANT_ADD_SUB_RAW;
+    wire[11:0] MANT_ADD_SUB_RAW;
 
-    logic[7:0] larger_mantissa;
+    wire[7:0] larger_mantissa;
         assign larger_mantissa = a_greater ? {1'b1, A_mant} : {1'b1, B_mant};
 
-    eff_add_sub eff_op;
+    reg eff_op;
 
-    always_comb begin
-        eff_op = ADD_EFF;
+    always @(*) begin
+        eff_op = `ADD_EFF;
 
-        if(op == ADD && (A_sign != B_sign))
-            eff_op = SUB_EFF;
-        else if(op == ADD && (A_sign == B_sign))
-            eff_op = ADD_EFF;
-        else if(op == SUB && (A_sign != B_sign))
-            eff_op = ADD_EFF;
-        else if((op == SUB && (A_sign == B_sign)))
-            eff_op = SUB_EFF;
+        if(op == `ADD && (A_sign != B_sign))
+            eff_op = `SUB_EFF;
+        else if(op == `ADD && (A_sign == B_sign))
+            eff_op = `ADD_EFF;
+        else if(op == `SUB && (A_sign != B_sign))
+            eff_op = `ADD_EFF;
+        else if((op == `SUB && (A_sign == B_sign)))
+            eff_op = `SUB_EFF;
     end
 
-    always_comb begin
-        if(eff_op == ADD_EFF)
+    always @(*) begin
+        if(eff_op == `ADD_EFF)
             MANT_ADD_SUB_RAW = {larger_mantissa, 3'b0} + {aligned_mant, GRS_ADD_SUB_PRE};
         else
             MANT_ADD_SUB_RAW = {larger_mantissa, 3'b0} - {aligned_mant, GRS_ADD_SUB_PRE}; 
     end
 
     //MULTIPLY/DIVIDE MANTISSA CALC
-    logic[7:0] recip_B;
+    wire[7:0] recip_B;
     
     dividerLUT LUT(
             .index(B_mant), .reciprocal(recip_B)
         );
 
-    logic[7:0] dadda_wire;
-        assign dadda_wire = (op == MUL) ? {1'b1, B_mant} : recip_B;
+    wire[7:0] dadda_wire;
+        assign dadda_wire = (op == `MUL) ? {1'b1, B_mant} : recip_B;
     
-    logic[15:0] row1, row2;
+    wire[15:0] row1, row2;
     
     dadda_multiplier daddaMultiplier(
             .a({1'b1, A_mant}),
@@ -156,30 +157,30 @@ module fpu_core import fpu_pkg::*;(
             .factor2(row2)
         );
     
-    logic[15:0] sum;
+    wire[15:0] sum;
         assign sum = row1 + row2;
     
-    logic[11:0] MANT_DIV_RAW; 
+    wire[11:0] MANT_DIV_RAW; 
         assign MANT_DIV_RAW = {1'b0, sum[15], sum[14:8], sum[7], sum[6], |sum[5:0]};
 
-    logic[11:0] MANT_MUL_RAW;
+    wire[11:0] MANT_MUL_RAW;
         assign MANT_MUL_RAW = {sum[15], sum[14], sum[13:7], sum[6], sum[5], |sum[4:0]};
 
-    logic[11:0] MANT_MUL_DIV_RAW;
-        assign MANT_MUL_DIV_RAW = (op == MUL) ? MANT_MUL_RAW : MANT_DIV_RAW;
+    wire[11:0] MANT_MUL_DIV_RAW;
+        assign MANT_MUL_DIV_RAW = (op == `MUL) ? MANT_MUL_RAW : MANT_DIV_RAW;
 
     //MULTIPLY/DIVIDE EXPONENT CALC
-    logic[8:0] EXP_MUL_DIV_RAW;
-        assign EXP_MUL_DIV_RAW = (op == MUL) ? 
+    wire[8:0] EXP_MUL_DIV_RAW;
+        assign EXP_MUL_DIV_RAW = (op == `MUL) ? 
         ({1'b0, A_exp} + {1'b0, B_exp} - 9'd127): 
         ({1'b0, A_exp} - {1'b0, B_exp} + 9'd127);
 
     //NORMALIZING
-    logic[11:0] norm_mant_wire;
-    logic[8:0] norm_exp_wire;
-    
-    always_comb begin
-        if(op == ADD || op == SUB) begin
+    reg[11:0] norm_mant_wire;
+    reg[8:0] norm_exp_wire;    
+
+    always @(*) begin
+        if(op == `ADD || op == `SUB) begin
             norm_mant_wire = MANT_ADD_SUB_RAW;
             norm_exp_wire = EXP_ADD_SUB_RAW;
         end
@@ -190,10 +191,9 @@ module fpu_core import fpu_pkg::*;(
         end
     end
 
-
-    logic[2:0] GRS;
-    logic[7:0] round_mant_wire;
-    logic[8:0] round_exp_wire;
+    wire[2:0] GRS;
+    wire[7:0] round_mant_wire;
+    wire[8:0] round_exp_wire;
 
     normalizer normalizer_inst(
             .mant_in(norm_mant_wire),
@@ -207,9 +207,8 @@ module fpu_core import fpu_pkg::*;(
         );
 
     //ROUNDING
-    logic[6:0] result_mant_wire;
-    logic[7:0] result_exp_wire;
-    //result_sign_wire from above
+    wire[6:0] result_mant_wire;
+    wire[7:0] result_exp_wire;
     
     rounder rounder_inst(
             .mantissa_in(round_mant_wire),
@@ -222,13 +221,13 @@ module fpu_core import fpu_pkg::*;(
             .flag_overflow(flag_overflow)
         );
     
-    logic[15:0] arithmetic_result;
+    wire[15:0] arithmetic_result;
         assign arithmetic_result = {result_sign_wire, result_exp_wire, result_mant_wire};
 
     //SLT
-    logic[15:0] SLT;
+    reg[15:0] SLT;
     
-    always_comb begin
+    always @(*) begin
         SLT = 16'h0000;
         
         if(A_sign == 1'b1 && B_sign == 1'b0)
@@ -246,24 +245,23 @@ module fpu_core import fpu_pkg::*;(
     end
 
     //FINAL RESULT MUXING
-    logic is_arith;
-    assign is_arith = (op==ADD)||(op==SUB)||(op==MUL)||(op==DIV);
+    wire is_arith;
+    assign is_arith = (op==`ADD)||(op==`SUB)||(op==`MUL)||(op==`DIV);
 
     //Catches cases where exponent isn't changed but result is known to be 0. 
-    //Added for subtraction between like 3.0 - 3.0
-    logic result_is_zero;
+    wire result_is_zero;
         assign result_is_zero = is_arith && (round_mant_wire == 8'b0);
 
-    always_comb begin
+    always @(*) begin
         accumulate_enable = 1'b1;
         result = 16'b0;
 
         case(op)
-            ADD, DIV, MUL, SUB: result = arithmetic_result;
-            NEG: result = {~A_sign, A_exp, A_mant};
-            ABS: result = {1'b0, A_exp, A_mant};
-            SLT: result = SLT;
-            NOP: accumulate_enable = 1'b0;
+            `ADD, `DIV, `MUL, `SUB: result = arithmetic_result;
+            `NEG: result = {~A_sign, A_exp, A_mant};
+            `ABS: result = {1'b0, A_exp, A_mant};
+            `SLT: result = SLT;
+            `NOP: accumulate_enable = 1'b0;
 
             default: accumulate_enable = 1'b0;
         endcase
@@ -276,11 +274,11 @@ module fpu_core import fpu_pkg::*;(
         if(result_is_zero)
             result = 16'h0000;
 
-        if(op == DIV && A_is_inf && !B_is_inf)
+        if(op == `DIV && A_is_inf && !B_is_inf)
             result = {result_sign_wire, 8'hFF, 7'h00};
-        if(op == DIV && B_is_inf && !A_is_inf)
+        if(op == `DIV && B_is_inf && !A_is_inf)
             result = {result_sign_wire, 8'h00, 7'h00};
-        if(op == MUL && (A_is_inf || B_is_inf))
+        if(op == `MUL && (A_is_inf || B_is_inf))
             result = {result_sign_wire, 8'hFF, 7'h00};
 
         if(flag_NAN)

@@ -1,14 +1,14 @@
 module alignmentShifter(
-    input logic[7:0] mantissa_in,
-    input logic[4:0] shift_amt,
-    output logic[7:0] mantissa_out,
-    output logic G, R, S
+    input wire[7:0] mantissa_in,
+    input wire[4:0] shift_amt,
+    output reg[7:0] mantissa_out,
+    output reg G, R, S
     );
 
-    logic[18:0] wide;
-    logic[18:0] shifted;
+    reg[18:0] wide;
+    reg[18:0] shifted;
 
-    always_comb begin
+    always @(*) begin
         wide = {mantissa_in, 11'b0};
 
         if(shift_amt >= 5'd11) begin
