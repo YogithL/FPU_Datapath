@@ -1,0 +1,8 @@
+{
+    "verilog.linting.linter": "verilator",
+    "verilog.linting.verilator.arguments": [
+        "-I${workspaceFolder}",
+        "--lint-only",
+        "-Wall"
+    ]
+}
