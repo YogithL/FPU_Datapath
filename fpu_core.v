@@ -4,9 +4,10 @@ module fpu_core(
     input wire[15:0] A, B,
     input wire[2:0] op,
     output reg[15:0] result,
-    output reg accumulate_enable
+    output reg accumulate_enable,
+    output wire flag_NAN, flag_overflow, flag_underflow
     );
-
+    
     //UNPACKING
     wire A_sign;
         assign A_sign = A[15];
@@ -34,13 +35,10 @@ module fpu_core(
     wire B_is_inf;
         assign B_is_inf = (B[14:0] == 15'h7F80);
 
-    reg flag_overflow;
-    reg flag_underflow;
-
     wire flag_div_by_zero;
         assign flag_div_by_zero = (op == `DIV) && (A[14:0] != 0) && (B[14:0] == 0);
 
-    wire flag_NAN; 
+    //wire flag_NAN; output now
         assign flag_NAN = (flag_A_NAN || flag_B_NAN) ||
         // Infinity / Infinity
         ((op == `DIV) && (A[14:0] == 15'h7F80) && (B[14:0] == 15'h7F80)) ||
@@ -82,7 +80,7 @@ module fpu_core(
     reg[7:0] mantissa_to_align;
     wire[2:0] GRS_ADD_SUB_PRE;
     
-    wire[3:0] shift_amt;
+    reg[3:0] shift_amt;
     wire[7:0] aligned_mant;
 
     always @(*) begin
@@ -111,7 +109,7 @@ module fpu_core(
         );
     
     //ADD/SUB MANTISSA CALC
-    wire[11:0] MANT_ADD_SUB_RAW;
+    reg[11:0] MANT_ADD_SUB_RAW;
 
     wire[7:0] larger_mantissa;
         assign larger_mantissa = a_greater ? {1'b1, A_mant} : {1'b1, B_mant};

@@ -1,7 +1,7 @@
 
 module halfAdder(
-    input logic A, B, 
-    output logic sum, carry
+    input wire A, B, 
+    output wire sum, carry
     );
 
     assign sum = A ^ B;

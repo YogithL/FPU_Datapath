@@ -1,7 +1,7 @@
                     
 module fullAdder(
-    input logic A, B, Cin,
-    output logic sum, carry
+    input wire A, B, Cin,
+    output wire sum, carry
     );
 
     assign sum = A ^ B ^ Cin;
