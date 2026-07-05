@@ -1,6 +1,6 @@
-module alignmentShifter(
+module alignment_shifter(
     input wire[7:0] mantissa_in,
-    input wire[4:0] shift_amt,
+    input wire[3:0] shift_amt,
     output reg[7:0] mantissa_out,
     output reg G, R, S
     );

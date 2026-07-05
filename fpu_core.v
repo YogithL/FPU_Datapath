@@ -96,10 +96,10 @@ module fpu_core(
             EXP_ADD_SUB_RAW = B_exp;
         end
         
-        shift_amt = (exp_diff >= 8'd11) ? 4'd11 : exp_diff[3:0];
+        shift_amt = exp_diff[3:0];
     end
 
-    alignmentShifter alignmentShifter(
+    alignment_shifter alignmentShifter(
             .mantissa_in(mantissa_to_align),
             .shift_amt(shift_amt),
             .mantissa_out(aligned_mant),
@@ -246,7 +246,7 @@ module fpu_core(
     wire is_arith;
     assign is_arith = (op==`ADD)||(op==`SUB)||(op==`MUL)||(op==`DIV);
 
-    //Catches cases where exponent isn't changed but result is known to be 0. 
+    //Catches cases where exponent isn't changed but result is known to be 0 (SUB)
     wire result_is_zero;
         assign result_is_zero = is_arith && (round_mant_wire == 8'b0);
 
