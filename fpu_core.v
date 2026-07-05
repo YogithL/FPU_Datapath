@@ -1,4 +1,4 @@
-`include "fpu_pkg.v"
+`include "fpu_pkg.vh"
 
 module fpu_core(
     input wire[15:0] A, B,

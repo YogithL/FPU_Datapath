@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-`include "fpu_pkg.v"
+`include "fpu_pkg.vh"
 
 module datapath_tb();
     reg clk;
