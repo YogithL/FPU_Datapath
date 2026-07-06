@@ -31,7 +31,7 @@ def round_half_even(x):
 
 def hardware_model(N_mant, D_mant, N_exp, D_exp, N_sign, D_sign, lut):
     R_sign = N_sign ^ D_sign
-    R_exp = N_exp - D_exp
+    R_exp = N_exp - D_exp + 127
     
     D_recip = lut[D_mant]
     
@@ -74,9 +74,15 @@ def hardware_model(N_mant, D_mant, N_exp, D_exp, N_sign, D_sign, lut):
         Round_mant = Round_mant >> 1  
         R_exp = R_exp + 1     
 
-    if R_exp >= 255:
-        result =     
+    #Final Result
+    R_mant = Round_mant
 
+    if R_exp >= 255:
+        R_exp = 255  
+    elif R_exp < 1:
+        R_exp = 0
+
+    return (R_sign << 15) | (R_exp << 7) | R_mant
 
     
     
